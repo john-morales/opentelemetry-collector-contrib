@@ -31,7 +31,7 @@ func NewRateLimiting(settings component.TelemetrySettings, spansPerSecond int64)
 
 // Evaluate looks at the trace data and returns a corresponding SamplingDecision.
 func (r *rateLimiting) Evaluate(_ context.Context, _ pcommon.TraceID, trace *TraceData) (Decision, error) {
-	r.logger.Debug("Evaluating spans in rate-limiting filter")
+	r.logger.Debug("Evaluating spans in rate-limiting filter", zap.Int64("spanCount", trace.SpanCount.Load()))
 	currSecond := time.Now().Unix()
 	if r.currentSecond != currSecond {
 		r.currentSecond = currSecond
@@ -40,9 +40,11 @@ func (r *rateLimiting) Evaluate(_ context.Context, _ pcommon.TraceID, trace *Tra
 
 	spansInSecondIfSampled := r.spansInCurrentSecond + trace.SpanCount.Load()
 	if spansInSecondIfSampled < r.spansPerSecond {
+		r.logger.Debug("Allowing given less than", zap.Int64("spansInSecondIfSampled", spansInSecondIfSampled), zap.Int64("rspansPerSecond", r.spansPerSecond))
 		r.spansInCurrentSecond = spansInSecondIfSampled
 		return Sampled, nil
 	}
 
+	r.logger.Debug("Denying given greater than or equal", zap.Int64("spansInSecondIfSampled", spansInSecondIfSampled), zap.Int64("rspansPerSecond", r.spansPerSecond))
 	return NotSampled, nil
 }
