@@ -191,7 +191,9 @@ type StringAttributeCfg struct {
 // sampling policy evaluator.
 type RateLimitingCfg struct {
 	// SpansPerSecond sets the limit on the maximum number of spans that can be processed each second.
-	SpansPerSecond int64 `mapstructure:"spans_per_second"`
+	SpansPerSecond  float64 `mapstructure:"spans_per_second"`
+	TracesPerSecond float64 `mapstructure:"traces_per_second"`
+	Burst           int64   `mapstructure:"burst"`
 }
 
 // SpanCountCfg holds the configurable settings to create a Span Count filter sampling
