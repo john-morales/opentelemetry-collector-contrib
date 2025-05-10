@@ -48,12 +48,16 @@ func NewRateLimiting(settings component.TelemetrySettings, spansPerSecond, trace
 
 	settings.Logger.Info("Creating rate limiter", zap.Float64("perSecondLimit", perSecondLimit), zap.Int("burstLimit", burstLimit))
 	return &rateLimiting{
-		// Must have a very high burst value (100k).
-		// If a small burst value of say 100 were set instead, then the rate limiting policy
-		// would never accept any trace containing more than 100 spans. But this way with 100k
-		// set as the burst, if say the rate per second were 1000/s, and we encounter a trace
-		// with 10,000 spans, then at least that span would be accepted followed by all traces
-		// being NotSampled for 10 seconds until the token bucket could refill.
+		// Must take care when setting burst.
+		//
+		// When using spans_per_second, the burst value is effectively a limit on the maximum
+		// number of spans a trace can have for it to be Sampled; the number of spans in a
+		// single trace exceeding the burst value will always evaluate to NotSampled.
+		//
+		// On the other hand, setting an excessively high burst can lead to an extended initial
+		// period where it appears no limiting is happening at all. This is because Limiter is
+		// initialized with its number of initial tokens set to the burst value, and not until
+		// that large initial pool is drawn down to zero will a NotSample then be returned.
 		limiter:        rate.NewLimiter(rate.Limit(perSecondLimit), burstLimit),
 		spansPerSecond: spansPerSecond,
 		fn:             fn,
