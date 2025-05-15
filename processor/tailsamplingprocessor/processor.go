@@ -231,7 +231,7 @@ func getSharedPolicyEvaluator(settings component.TelemetrySettings, cfg *sharedP
 		return sampling.NewStatusCodeFilter(settings, scfCfg.StatusCodes)
 	case RateLimiting:
 		rlfCfg := cfg.RateLimitingCfg
-		return sampling.NewRateLimiting(settings, rlfCfg.SpansPerSecond, rlfCfg.TracesPerSecond, rlfCfg.Burst), nil
+		return sampling.NewRateLimiting(settings, cfg.Name, rlfCfg.SpansPerSecond, rlfCfg.TracesPerSecond, rlfCfg.Burst), nil
 	case SpanCount:
 		spCfg := cfg.SpanCountCfg
 		return sampling.NewSpanCount(settings, spCfg.MinSpans, spCfg.MaxSpans), nil
