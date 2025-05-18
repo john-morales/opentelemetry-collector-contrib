@@ -5,24 +5,33 @@ package sampling // import "github.com/open-telemetry/opentelemetry-collector-co
 
 import (
 	"context"
-
+	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/tailsamplingprocessor/internal/metadata"
 	"go.opentelemetry.io/collector/pdata/pcommon"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
+	"time"
 )
 
 type Or struct {
 	// the subpolicy evaluators
 	subpolicies []PolicyEvaluator
 	logger      *zap.Logger
+	tel         *metadata.TelemetryBuilder
+	attribute   metric.MeasurementOption
 }
 
 func NewOr(
 	logger *zap.Logger,
+	tel *metadata.TelemetryBuilder,
+	policyName string,
 	subpolicies []PolicyEvaluator,
 ) PolicyEvaluator {
 	return &Or{
 		subpolicies: subpolicies,
 		logger:      logger,
+		tel:         tel,
+		attribute:   metric.WithAttributes(attribute.String("policy", policyName)),
 	}
 }
 
@@ -30,6 +39,10 @@ func NewOr(
 func (c *Or) Evaluate(ctx context.Context, traceID pcommon.TraceID, trace *TraceData) (Decision, error) {
 	// The policy iterates over all sub-policies and returns Sampled if all sub-policies returned a Sampled Decision.
 	// If any subpolicy returns NotSampled or InvertNotSampled, it returns NotSampled Decision.
+	start := time.Now()
+	defer func() {
+		GlobalTelemetryBuilder.ProcessorTailSamplingSamplingDecisionLatency.Record(ctx, int64(time.Since(start)/time.Microsecond), c.attribute)
+	}()
 	for _, sub := range c.subpolicies {
 		decision, err := sub.Evaluate(ctx, traceID, trace)
 		if err != nil {

@@ -95,6 +95,7 @@ func newTracesProcessor(ctx context.Context, set processor.Settings, nextConsume
 	if err != nil {
 		return nil, err
 	}
+	sampling.GlobalTelemetryBuilder = telemetry
 	nopCache := cache.NewNopDecisionCache[bool]()
 	sampledDecisions := nopCache
 	nonSampledDecisions := nopCache
@@ -195,16 +196,16 @@ func withRecordPolicy() Option {
 	}
 }
 
-func getPolicyEvaluator(settings component.TelemetrySettings, cfg *PolicyCfg) (sampling.PolicyEvaluator, error) {
+func getPolicyEvaluator(settings component.TelemetrySettings, telemetry *metadata.TelemetryBuilder, cfg *PolicyCfg) (sampling.PolicyEvaluator, error) {
 	switch cfg.Type {
 	case Composite:
-		return getNewCompositePolicy(settings, &cfg.CompositeCfg)
+		return getNewCompositePolicy(settings, telemetry, &cfg.CompositeCfg)
 	case And:
-		return getNewAndPolicy(settings, &cfg.AndCfg)
+		return getNewAndPolicy(settings, telemetry, cfg.Name, &cfg.AndCfg)
 	case Or:
-		return getNewOrPolicy(settings, &cfg.OrCfg)
+		return getNewOrPolicy(settings, telemetry, cfg.Name, &cfg.OrCfg)
 	case Not:
-		return getNewNotPolicy(settings, &cfg.NotCfg)
+		return getNewNotPolicy(settings, telemetry, cfg.Name, &cfg.NotCfg)
 	default:
 		return getSharedPolicyEvaluator(settings, &cfg.sharedPolicyCfg)
 	}
@@ -218,7 +219,7 @@ func getSharedPolicyEvaluator(settings component.TelemetrySettings, cfg *sharedP
 		return sampling.NewAlwaysSample(settings), nil
 	case Latency:
 		lfCfg := cfg.LatencyCfg
-		return sampling.NewLatency(settings, lfCfg.ThresholdMs, lfCfg.UpperThresholdmsMs), nil
+		return sampling.NewLatency(settings, cfg.Name, lfCfg.ThresholdMs, lfCfg.UpperThresholdmsMs), nil
 	case NumericAttribute:
 		nafCfg := cfg.NumericAttributeCfg
 		minValue := nafCfg.MinValue
@@ -229,19 +230,19 @@ func getSharedPolicyEvaluator(settings component.TelemetrySettings, cfg *sharedP
 		return sampling.NewProbabilisticSampler(settings, pCfg.HashSalt, pCfg.SamplingPercentage), nil
 	case StringAttribute:
 		safCfg := cfg.StringAttributeCfg
-		return sampling.NewStringAttributeFilter(settings, safCfg.Key, safCfg.Values, safCfg.EnabledRegexMatching, safCfg.CacheMaxSize, safCfg.InvertMatch), nil
+		return sampling.NewStringAttributeFilter(settings, cfg.Name, safCfg.Key, safCfg.Values, safCfg.EnabledRegexMatching, safCfg.CacheMaxSize, safCfg.InvertMatch), nil
 	case StatusCode:
 		scfCfg := cfg.StatusCodeCfg
-		return sampling.NewStatusCodeFilter(settings, scfCfg.StatusCodes)
+		return sampling.NewStatusCodeFilter(settings, cfg.Name, scfCfg.StatusCodes)
 	case RateLimiting:
 		rlfCfg := cfg.RateLimitingCfg
 		return sampling.NewRateLimiting(settings, cfg.Name, rlfCfg.SpansPerSecond, rlfCfg.TracesPerSecond, rlfCfg.Burst), nil
 	case SpanCount:
 		spCfg := cfg.SpanCountCfg
-		return sampling.NewSpanCount(settings, spCfg.MinSpans, spCfg.MaxSpans), nil
+		return sampling.NewSpanCount(settings, cfg.Name, spCfg.MinSpans, spCfg.MaxSpans), nil
 	case TraceState:
 		tsfCfg := cfg.TraceStateCfg
-		return sampling.NewTraceStateFilter(settings, tsfCfg.Key, tsfCfg.Values), nil
+		return sampling.NewTraceStateFilter(settings, cfg.Name, tsfCfg.Key, tsfCfg.Values), nil
 	case BooleanAttribute:
 		bafCfg := cfg.BooleanAttributeCfg
 		return sampling.NewBooleanAttributeFilter(settings, bafCfg.Key, bafCfg.Value, bafCfg.InvertMatch), nil
@@ -276,7 +277,7 @@ func (tsp *tailSamplingSpanProcessor) loadSamplingPolicy(cfgs []PolicyCfg) error
 		}
 		policyNames[cfg.Name] = struct{}{}
 
-		eval, err := getPolicyEvaluator(telemetrySettings, &cfg)
+		eval, err := getPolicyEvaluator(telemetrySettings, tsp.telemetry, &cfg)
 		if err != nil {
 			return fmt.Errorf("failed to create policy evaluator for %q: %w", cfg.Name, err)
 		}
@@ -397,8 +398,8 @@ func (tsp *tailSamplingSpanProcessor) makeDecision(id pcommon.TraceID, trace *sa
 		sampling.InvertNotSampled: nil,
 	}
 
-	ctx := context.Background()
 	startTime := time.Now()
+	ctx := context.WithValue(context.Background(), "startTime", startTime)
 
 	// Check all policies before making a final decision.
 	for _, p := range tsp.policies {

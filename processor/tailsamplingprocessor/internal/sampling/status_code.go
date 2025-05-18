@@ -7,6 +7,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
+	"time"
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -17,13 +20,14 @@ import (
 type statusCodeFilter struct {
 	logger      *zap.Logger
 	statusCodes []ptrace.StatusCode
+	attribute   metric.MeasurementOption
 }
 
 var _ PolicyEvaluator = (*statusCodeFilter)(nil)
 
 // NewStatusCodeFilter creates a policy evaluator that samples all traces with
 // a given status code.
-func NewStatusCodeFilter(settings component.TelemetrySettings, statusCodeString []string) (PolicyEvaluator, error) {
+func NewStatusCodeFilter(settings component.TelemetrySettings, policyName string, statusCodeString []string) (PolicyEvaluator, error) {
 	if len(statusCodeString) == 0 {
 		return nil, errors.New("expected at least one status code to filter on")
 	}
@@ -46,11 +50,17 @@ func NewStatusCodeFilter(settings component.TelemetrySettings, statusCodeString 
 	return &statusCodeFilter{
 		logger:      settings.Logger,
 		statusCodes: statusCodes,
+		attribute:   metric.WithAttributes(attribute.String("policy", policyName)),
 	}, nil
 }
 
 // Evaluate looks at the trace data and returns a corresponding SamplingDecision.
-func (r *statusCodeFilter) Evaluate(_ context.Context, _ pcommon.TraceID, trace *TraceData) (Decision, error) {
+func (r *statusCodeFilter) Evaluate(ctx context.Context, _ pcommon.TraceID, trace *TraceData) (Decision, error) {
+	start := time.Now()
+	defer func() {
+		GlobalTelemetryBuilder.ProcessorTailSamplingSamplingDecisionLatency.Record(ctx, int64(time.Since(start)/time.Microsecond), r.attribute)
+	}()
+
 	r.logger.Debug("Evaluating spans in status code filter")
 
 	trace.Lock()

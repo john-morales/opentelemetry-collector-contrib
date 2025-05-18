@@ -5,7 +5,10 @@ package sampling // import "github.com/open-telemetry/opentelemetry-collector-co
 
 import (
 	"context"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"regexp"
+	"time"
 
 	"github.com/golang/groupcache/lru"
 	"go.opentelemetry.io/collector/component"
@@ -23,6 +26,7 @@ type stringAttributeFilter struct {
 	// or in regular expression
 	matcher     func(string) bool
 	invertMatch bool
+	attribute   metric.MeasurementOption
 }
 
 type regexStrSetting struct {
@@ -34,7 +38,7 @@ var _ PolicyEvaluator = (*stringAttributeFilter)(nil)
 
 // NewStringAttributeFilter creates a policy evaluator that samples all traces with
 // the given attribute in the given numeric range.
-func NewStringAttributeFilter(settings component.TelemetrySettings, key string, values []string, regexMatchEnabled bool, evictSize int, invertMatch bool) PolicyEvaluator {
+func NewStringAttributeFilter(settings component.TelemetrySettings, policyName, key string, values []string, regexMatchEnabled bool, evictSize int, invertMatch bool) PolicyEvaluator {
 	// initialize regex filter rules and LRU cache for matched results
 	if regexMatchEnabled {
 		if evictSize <= 0 {
@@ -85,13 +89,19 @@ func NewStringAttributeFilter(settings component.TelemetrySettings, key string, 
 			return matched
 		},
 		invertMatch: invertMatch,
+		attribute:   metric.WithAttributes(attribute.String("policy", policyName)),
 	}
 }
 
 // Evaluate looks at the trace data and returns a corresponding SamplingDecision.
 // The SamplingDecision is made by comparing the attribute values with the matching values,
 // which might be static strings or regular expressions.
-func (saf *stringAttributeFilter) Evaluate(_ context.Context, _ pcommon.TraceID, trace *TraceData) (Decision, error) {
+func (saf *stringAttributeFilter) Evaluate(ctx context.Context, _ pcommon.TraceID, trace *TraceData) (Decision, error) {
+	start := time.Now()
+	defer func() {
+		GlobalTelemetryBuilder.ProcessorTailSamplingSamplingDecisionLatency.Record(ctx, int64(time.Since(start)/time.Microsecond), saf.attribute)
+	}()
+
 	saf.logger.Debug("Evaluating spans in string-tag filter")
 	trace.Lock()
 	defer trace.Unlock()

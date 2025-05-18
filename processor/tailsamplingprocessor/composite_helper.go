@@ -4,18 +4,19 @@
 package tailsamplingprocessor // import "github.com/open-telemetry/opentelemetry-collector-contrib/processor/tailsamplingprocessor"
 
 import (
+	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/tailsamplingprocessor/internal/metadata"
 	"go.opentelemetry.io/collector/component"
 
 	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/tailsamplingprocessor/internal/sampling"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/tailsamplingprocessor/internal/telemetry"
 )
 
-func getNewCompositePolicy(settings component.TelemetrySettings, config *CompositeCfg) (sampling.PolicyEvaluator, error) {
+func getNewCompositePolicy(settings component.TelemetrySettings, tel *metadata.TelemetryBuilder, config *CompositeCfg) (sampling.PolicyEvaluator, error) {
 	subPolicyEvalParams := make([]sampling.SubPolicyEvalParams, len(config.SubPolicyCfg))
 	rateAllocationsMap := getRateAllocationMap(config)
 	for i := range config.SubPolicyCfg {
 		policyCfg := &config.SubPolicyCfg[i]
-		policy, err := getCompositeSubPolicyEvaluator(settings, policyCfg)
+		policy, err := getCompositeSubPolicyEvaluator(settings, tel, policyCfg)
 		if err != nil {
 			return nil, err
 		}
@@ -47,10 +48,10 @@ func getRateAllocationMap(config *CompositeCfg) map[string]float64 {
 }
 
 // Return instance of composite sub-policy
-func getCompositeSubPolicyEvaluator(settings component.TelemetrySettings, cfg *CompositeSubPolicyCfg) (sampling.PolicyEvaluator, error) {
+func getCompositeSubPolicyEvaluator(settings component.TelemetrySettings, tel *metadata.TelemetryBuilder, cfg *CompositeSubPolicyCfg) (sampling.PolicyEvaluator, error) {
 	switch cfg.Type {
 	case And:
-		return getNewAndPolicy(settings, &cfg.AndCfg)
+		return getNewAndPolicy(settings, tel, cfg.Name, &cfg.AndCfg)
 	default:
 		return getSharedPolicyEvaluator(settings, &cfg.sharedPolicyCfg)
 	}

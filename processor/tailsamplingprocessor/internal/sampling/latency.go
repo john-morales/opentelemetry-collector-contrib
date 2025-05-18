@@ -5,6 +5,9 @@ package sampling // import "github.com/open-telemetry/opentelemetry-collector-co
 
 import (
 	"context"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
+	"time"
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -16,21 +19,28 @@ type latency struct {
 	logger           *zap.Logger
 	thresholdMs      int64
 	upperThresholdMs int64
+	attribute        metric.MeasurementOption
 }
 
 var _ PolicyEvaluator = (*latency)(nil)
 
 // NewLatency creates a policy evaluator sampling traces with a duration greater than a configured threshold
-func NewLatency(settings component.TelemetrySettings, thresholdMs int64, upperThresholdMs int64) PolicyEvaluator {
+func NewLatency(settings component.TelemetrySettings, policyName string, thresholdMs int64, upperThresholdMs int64) PolicyEvaluator {
 	return &latency{
 		logger:           settings.Logger,
 		thresholdMs:      thresholdMs,
 		upperThresholdMs: upperThresholdMs,
+		attribute:        metric.WithAttributes(attribute.String("policy", policyName)),
 	}
 }
 
 // Evaluate looks at the trace data and returns a corresponding SamplingDecision.
-func (l *latency) Evaluate(_ context.Context, _ pcommon.TraceID, traceData *TraceData) (Decision, error) {
+func (l *latency) Evaluate(ctx context.Context, _ pcommon.TraceID, traceData *TraceData) (Decision, error) {
+	start := time.Now()
+	defer func() {
+		GlobalTelemetryBuilder.ProcessorTailSamplingSamplingDecisionLatency.Record(ctx, int64(time.Since(start)/time.Microsecond), l.attribute)
+	}()
+
 	l.logger.Debug("Evaluating spans in latency filter")
 
 	traceData.Lock()

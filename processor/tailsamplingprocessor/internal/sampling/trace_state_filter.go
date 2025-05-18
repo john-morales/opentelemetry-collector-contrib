@@ -5,6 +5,9 @@ package sampling // import "github.com/open-telemetry/opentelemetry-collector-co
 
 import (
 	"context"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
+	"time"
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -14,16 +17,17 @@ import (
 )
 
 type traceStateFilter struct {
-	key     string
-	logger  *zap.Logger
-	matcher func(string) bool
+	key       string
+	logger    *zap.Logger
+	matcher   func(string) bool
+	attribute metric.MeasurementOption
 }
 
 var _ PolicyEvaluator = (*traceStateFilter)(nil)
 
 // NewTraceStateFilter creates a policy evaluator that samples all traces with
 // the given value by the specific key in the trace_state.
-func NewTraceStateFilter(settings component.TelemetrySettings, key string, values []string) PolicyEvaluator {
+func NewTraceStateFilter(settings component.TelemetrySettings, policyName, key string, values []string) PolicyEvaluator {
 	// initialize the exact value map
 	valuesMap := make(map[string]struct{})
 	for _, value := range values {
@@ -39,11 +43,17 @@ func NewTraceStateFilter(settings component.TelemetrySettings, key string, value
 			_, matched := valuesMap[toMatch]
 			return matched
 		},
+		attribute: metric.WithAttributes(attribute.String("policy", policyName)),
 	}
 }
 
 // Evaluate looks at the trace data and returns a corresponding SamplingDecision.
-func (tsf *traceStateFilter) Evaluate(_ context.Context, _ pcommon.TraceID, trace *TraceData) (Decision, error) {
+func (tsf *traceStateFilter) Evaluate(ctx context.Context, _ pcommon.TraceID, trace *TraceData) (Decision, error) {
+	start := time.Now()
+	defer func() {
+		GlobalTelemetryBuilder.ProcessorTailSamplingSamplingDecisionLatency.Record(ctx, int64(time.Since(start)/time.Microsecond), tsf.attribute)
+	}()
+
 	trace.Lock()
 	defer trace.Unlock()
 	batches := trace.ReceivedBatches

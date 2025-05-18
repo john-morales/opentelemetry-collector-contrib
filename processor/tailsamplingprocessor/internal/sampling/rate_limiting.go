@@ -26,9 +26,9 @@ type rateLimiting struct {
 	fn             valueFunction
 	logger         *zap.Logger
 
-	name         string
-	counter      metric.Int64Counter
-	policyOption metric.MeasurementOption
+	name      string
+	counter   metric.Int64Counter
+	attribute metric.MeasurementOption
 }
 
 var _ PolicyEvaluator = (*rateLimiting)(nil)
@@ -84,9 +84,9 @@ func NewRateLimiting(settings component.TelemetrySettings, name string, spansPer
 		fn:             fn,
 		logger:         settings.Logger,
 
-		name:         name,
-		counter:      counter,
-		policyOption: metric.WithAttributes(attribute.String("policy", name)),
+		name:      name,
+		counter:   counter,
+		attribute: metric.WithAttributes(attribute.String("policy", name)),
 	}
 }
 
@@ -102,10 +102,15 @@ func (r *rateLimiting) limiterLoggingFields(preTokens float64, n int) []zap.Fiel
 
 // Evaluate looks at the trace data and returns a corresponding SamplingDecision.
 func (r *rateLimiting) Evaluate(ctx context.Context, _ pcommon.TraceID, trace *TraceData) (Decision, error) {
+	start := time.Now()
+	defer func() {
+		GlobalTelemetryBuilder.ProcessorTailSamplingSamplingDecisionLatency.Record(ctx, int64(time.Since(start)/time.Microsecond), r.attribute)
+	}()
+
 	n := r.fn(trace)
 	preTokens := r.limiter.Tokens()
 	if r.limiter.AllowN(time.Now(), n) {
-		r.counter.Add(ctx, 1, attrSampledTrue, r.policyOption)
+		r.counter.Add(ctx, 1, attrSampledTrue, r.attribute)
 		if r.logger.Level() <= zap.DebugLevel {
 			r.logger.Debug("Rate Limiter allowed", r.limiterLoggingFields(preTokens, n)...)
 		}
@@ -115,6 +120,6 @@ func (r *rateLimiting) Evaluate(ctx context.Context, _ pcommon.TraceID, trace *T
 	if r.logger.Level() <= zap.DebugLevel {
 		r.logger.Debug("Rate Limiter denied", r.limiterLoggingFields(preTokens, n)...)
 	}
-	r.counter.Add(ctx, 1, attrSampledFalse, r.policyOption)
+	r.counter.Add(ctx, 1, attrSampledFalse, r.attribute)
 	return NotSampled, nil
 }
