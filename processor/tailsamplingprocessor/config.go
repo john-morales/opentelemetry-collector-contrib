@@ -33,6 +33,10 @@ const (
 	Composite PolicyType = "composite"
 	// And allows defining a And policy, combining the other policies in one
 	And PolicyType = "and"
+	// Or allows defining a Or policy, combining the other policies in one
+	Or PolicyType = "or"
+	// Not allows defining a Not policy, inverting the result of a policy
+	Not PolicyType = "not"
 	// SpanCount sample traces that are have more spans per Trace than a given threshold.
 	SpanCount PolicyType = "span_count"
 	// TraceState sample traces with specified values by the given key
@@ -87,6 +91,16 @@ type AndSubPolicyCfg struct {
 	sharedPolicyCfg `mapstructure:",squash"` // squash ensures fields are correctly decoded in embedded struct
 }
 
+// OrSubPolicyCfg holds the common configuration to all policies under and policy.
+type OrSubPolicyCfg struct {
+	sharedPolicyCfg `mapstructure:",squash"` // squash ensures fields are correctly decoded in embedded struct
+}
+
+// NotSubPolicyCfg holds the common configuration to all policies under and policy.
+type NotSubPolicyCfg struct {
+	sharedPolicyCfg `mapstructure:",squash"` // squash ensures fields are correctly decoded in embedded struct
+}
+
 // TraceStateCfg holds the common configuration for trace states.
 type TraceStateCfg struct {
 	// Tag that the filter is going to be matching against.
@@ -97,7 +111,17 @@ type TraceStateCfg struct {
 
 // AndCfg holds the common configuration to all and policies.
 type AndCfg struct {
-	SubPolicyCfg []AndSubPolicyCfg `mapstructure:"and_sub_policy"`
+	SubPolicyCfg []PolicyCfg `mapstructure:"and_sub_policy"`
+}
+
+// OrCfg holds the common configuration to all and policies.
+type OrCfg struct {
+	SubPolicyCfg []PolicyCfg `mapstructure:"or_sub_policy"`
+}
+
+// NotCfg holds the common configuration to all and policies.
+type NotCfg struct {
+	SubPolicyCfg []PolicyCfg `mapstructure:"not_sub_policy"`
 }
 
 // CompositeCfg holds the configurable settings to create a composite
@@ -123,6 +147,10 @@ type PolicyCfg struct {
 	CompositeCfg CompositeCfg `mapstructure:"composite"`
 	// Configs for defining and policy
 	AndCfg AndCfg `mapstructure:"and"`
+	// Configs for defining and policy
+	OrCfg OrCfg `mapstructure:"or"`
+	// Configs for defining and policy
+	NotCfg NotCfg `mapstructure:"not"`
 }
 
 // LatencyCfg holds the configurable settings to create a latency filter sampling policy

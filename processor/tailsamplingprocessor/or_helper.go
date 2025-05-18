@@ -9,21 +9,21 @@ import (
 	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/tailsamplingprocessor/internal/sampling"
 )
 
-func getNewAndPolicy(settings component.TelemetrySettings, config *AndCfg) (sampling.PolicyEvaluator, error) {
+func getNewOrPolicy(settings component.TelemetrySettings, config *OrCfg) (sampling.PolicyEvaluator, error) {
 	subPolicyEvaluators := make([]sampling.PolicyEvaluator, len(config.SubPolicyCfg))
 	for i := range config.SubPolicyCfg {
 		policyCfg := &config.SubPolicyCfg[i]
-		//policy, err := getAndSubPolicyEvaluator(settings, policyCfg)
-		policy, err := getPolicyEvaluator(settings, policyCfg)
+		//orPolicy, err := getOrSubPolicyEvaluator(settings, policyCfg)
+		orPolicy, err := getPolicyEvaluator(settings, policyCfg)
 		if err != nil {
 			return nil, err
 		}
-		subPolicyEvaluators[i] = policy
+		subPolicyEvaluators[i] = orPolicy
 	}
-	return sampling.NewAnd(settings.Logger, subPolicyEvaluators), nil
+	return sampling.NewOr(settings.Logger, subPolicyEvaluators), nil
 }
 
 // Return instance of and sub-policy
-func getAndSubPolicyEvaluator(settings component.TelemetrySettings, cfg *AndSubPolicyCfg) (sampling.PolicyEvaluator, error) {
+func getOrSubPolicyEvaluator(settings component.TelemetrySettings, cfg *OrSubPolicyCfg) (sampling.PolicyEvaluator, error) {
 	return getSharedPolicyEvaluator(settings, &cfg.sharedPolicyCfg)
 }

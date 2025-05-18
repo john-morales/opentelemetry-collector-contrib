@@ -174,6 +174,8 @@ func (lb *loadBalancer) addMissingExporters(ctx context.Context, endpoints []str
 				lb.logger.Error("failed to create new exporter for endpoint", zap.String("endpoint", endpoint), zap.Error(err))
 				continue
 			}
+
+			lb.logger.Info("Adding exporter to exporters pool", zap.String("endpoint", endpoint))
 			we := newWrappedExporter(exp, endpoint)
 			if err = we.Start(ctx, lb.host); err != nil {
 				lb.logger.Error("failed to start new exporter for endpoint", zap.String("endpoint", endpoint), zap.Error(err))
@@ -201,6 +203,7 @@ func (lb *loadBalancer) removeExtraExporters(ctx context.Context, endpoints []st
 			exp := lb.exporters[existing]
 			// Shutdown the exporter asynchronously to avoid blocking the resolver
 			go func() {
+				lb.logger.Info("Removing exporter from exporters pool", zap.String("endpoint", existing))
 				_ = exp.Shutdown(ctx)
 			}()
 			delete(lb.exporters, existing)

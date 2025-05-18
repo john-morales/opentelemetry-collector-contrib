@@ -201,6 +201,10 @@ func getPolicyEvaluator(settings component.TelemetrySettings, cfg *PolicyCfg) (s
 		return getNewCompositePolicy(settings, &cfg.CompositeCfg)
 	case And:
 		return getNewAndPolicy(settings, &cfg.AndCfg)
+	case Or:
+		return getNewOrPolicy(settings, &cfg.OrCfg)
+	case Not:
+		return getNewNotPolicy(settings, &cfg.NotCfg)
 	default:
 		return getSharedPolicyEvaluator(settings, &cfg.sharedPolicyCfg)
 	}
