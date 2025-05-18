@@ -44,10 +44,13 @@ func (c *spanCount) Evaluate(ctx context.Context, _ pcommon.TraceID, traceData *
 	spanCount := int(traceData.SpanCount.Load())
 	switch {
 	case c.maxSpans == 0 && spanCount >= int(c.minSpans):
+		GlobalTelemetryBuilder.ProcessorTailSamplingCountTracesSampled.Add(ctx, 1, c.attribute, decisionToAttribute[Sampled])
 		return Sampled, nil
 	case spanCount >= int(c.minSpans) && spanCount <= int(c.maxSpans):
+		GlobalTelemetryBuilder.ProcessorTailSamplingCountTracesSampled.Add(ctx, 1, c.attribute, decisionToAttribute[Sampled])
 		return Sampled, nil
 	default:
+		GlobalTelemetryBuilder.ProcessorTailSamplingCountTracesSampled.Add(ctx, 1, c.attribute, decisionToAttribute[NotSampled])
 		return NotSampled, nil
 	}
 }

@@ -67,12 +67,17 @@ func (r *statusCodeFilter) Evaluate(ctx context.Context, _ pcommon.TraceID, trac
 	defer trace.Unlock()
 	batches := trace.ReceivedBatches
 
-	return hasSpanWithCondition(batches, func(span ptrace.Span) bool {
+	decision := hasSpanWithCondition(batches, func(span ptrace.Span) bool {
 		for _, statusCode := range r.statusCodes {
 			if span.Status().Code() == statusCode {
 				return true
 			}
 		}
 		return false
-	}), nil
+	})
+
+	if attr, ok := decisionToAttribute[decision]; ok {
+		GlobalTelemetryBuilder.ProcessorTailSamplingCountTracesSampled.Add(ctx, 1, r.attribute, attr)
+	}
+	return decision, nil
 }

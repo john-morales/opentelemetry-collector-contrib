@@ -15,11 +15,6 @@ import (
 	"time"
 )
 
-var (
-	attrSampledTrue  = metric.WithAttributes(attribute.String("sampled", "true"))
-	attrSampledFalse = metric.WithAttributes(attribute.String("sampled", "false"))
-)
-
 type rateLimiting struct {
 	limiter        *rate.Limiter
 	spansPerSecond float64
@@ -114,6 +109,7 @@ func (r *rateLimiting) Evaluate(ctx context.Context, _ pcommon.TraceID, trace *T
 		if r.logger.Level() <= zap.DebugLevel {
 			r.logger.Debug("Rate Limiter allowed", r.limiterLoggingFields(preTokens, n)...)
 		}
+		GlobalTelemetryBuilder.ProcessorTailSamplingCountTracesSampled.Add(ctx, 1, r.attribute, decisionToAttribute[Sampled])
 		return Sampled, nil
 	}
 
@@ -121,5 +117,6 @@ func (r *rateLimiting) Evaluate(ctx context.Context, _ pcommon.TraceID, trace *T
 		r.logger.Debug("Rate Limiter denied", r.limiterLoggingFields(preTokens, n)...)
 	}
 	r.counter.Add(ctx, 1, attrSampledFalse, r.attribute)
+	GlobalTelemetryBuilder.ProcessorTailSamplingCountTracesSampled.Add(ctx, 1, r.attribute, decisionToAttribute[NotSampled])
 	return NotSampled, nil
 }

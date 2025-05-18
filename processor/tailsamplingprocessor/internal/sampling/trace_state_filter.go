@@ -58,7 +58,7 @@ func (tsf *traceStateFilter) Evaluate(ctx context.Context, _ pcommon.TraceID, tr
 	defer trace.Unlock()
 	batches := trace.ReceivedBatches
 
-	return hasSpanWithCondition(batches, func(span ptrace.Span) bool {
+	decision := hasSpanWithCondition(batches, func(span ptrace.Span) bool {
 		traceState, err := tracesdk.ParseTraceState(span.TraceState().AsRaw())
 		if err != nil {
 			return false
@@ -67,5 +67,9 @@ func (tsf *traceStateFilter) Evaluate(ctx context.Context, _ pcommon.TraceID, tr
 			return true
 		}
 		return false
-	}), nil
+	})
+	if attr, ok := decisionToAttribute[decision]; ok {
+		GlobalTelemetryBuilder.ProcessorTailSamplingCountTracesSampled.Add(ctx, 1, tsf.attribute, attr)
+	}
+	return decision, nil
 }

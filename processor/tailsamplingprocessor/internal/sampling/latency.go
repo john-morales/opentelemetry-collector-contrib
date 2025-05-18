@@ -50,7 +50,7 @@ func (l *latency) Evaluate(ctx context.Context, _ pcommon.TraceID, traceData *Tr
 	var minTime pcommon.Timestamp
 	var maxTime pcommon.Timestamp
 
-	return hasSpanWithCondition(batches, func(span ptrace.Span) bool {
+	decision := hasSpanWithCondition(batches, func(span ptrace.Span) bool {
 		if minTime == 0 || span.StartTimestamp() < minTime {
 			minTime = span.StartTimestamp()
 		}
@@ -63,5 +63,10 @@ func (l *latency) Evaluate(ctx context.Context, _ pcommon.TraceID, traceData *Tr
 			return duration.Milliseconds() >= l.thresholdMs
 		}
 		return (l.thresholdMs < duration.Milliseconds() && duration.Milliseconds() <= l.upperThresholdMs)
-	}), nil
+	})
+
+	if attr, ok := decisionToAttribute[decision]; ok {
+		GlobalTelemetryBuilder.ProcessorTailSamplingCountTracesSampled.Add(ctx, 1, l.attribute, attr)
+	}
+	return decision, nil
 }

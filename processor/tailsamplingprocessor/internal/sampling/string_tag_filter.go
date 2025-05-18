@@ -109,7 +109,7 @@ func (saf *stringAttributeFilter) Evaluate(ctx context.Context, _ pcommon.TraceI
 
 	if saf.invertMatch {
 		// Invert Match returns true by default, except when key and value are matched
-		return invertHasResourceOrSpanWithCondition(
+		decision := invertHasResourceOrSpanWithCondition(
 			batches,
 			func(resource pcommon.Resource) bool {
 				if v, ok := resource.Attributes().Get(saf.key); ok {
@@ -130,10 +130,14 @@ func (saf *stringAttributeFilter) Evaluate(ctx context.Context, _ pcommon.TraceI
 				}
 				return true
 			},
-		), nil
+		)
+		if attr, ok := decisionToAttribute[decision]; ok {
+			GlobalTelemetryBuilder.ProcessorTailSamplingCountTracesSampled.Add(ctx, 1, saf.attribute, attr)
+		}
+		return decision, nil
 	}
 
-	return hasResourceOrSpanWithCondition(
+	decision := hasResourceOrSpanWithCondition(
 		batches,
 		func(resource pcommon.Resource) bool {
 			if v, ok := resource.Attributes().Get(saf.key); ok {
@@ -154,7 +158,11 @@ func (saf *stringAttributeFilter) Evaluate(ctx context.Context, _ pcommon.TraceI
 			}
 			return false
 		},
-	), nil
+	)
+	if attr, ok := decisionToAttribute[decision]; ok {
+		GlobalTelemetryBuilder.ProcessorTailSamplingCountTracesSampled.Add(ctx, 1, saf.attribute, attr)
+	}
+	return decision, nil
 }
 
 // addFilters compiles all the given filters and stores them as regexes.

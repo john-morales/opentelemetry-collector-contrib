@@ -51,9 +51,11 @@ func (c *And) Evaluate(ctx context.Context, traceID pcommon.TraceID, trace *Trac
 			return Unspecified, err
 		}
 		if decision == NotSampled || decision == InvertNotSampled {
+			GlobalTelemetryBuilder.ProcessorTailSamplingCountTracesSampled.Add(ctx, 1, c.attribute, decisionToAttribute[NotSampled])
 			return NotSampled, nil
 		}
 	}
+	GlobalTelemetryBuilder.ProcessorTailSamplingCountTracesSampled.Add(ctx, 1, c.attribute, decisionToAttribute[Sampled])
 	return Sampled, nil
 }
 
