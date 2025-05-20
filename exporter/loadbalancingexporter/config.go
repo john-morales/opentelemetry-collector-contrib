@@ -58,10 +58,11 @@ type Protocol struct {
 
 // ResolverSettings defines the configurations for the backend resolver
 type ResolverSettings struct {
-	Static      *StaticResolver      `mapstructure:"static"`
-	DNS         *DNSResolver         `mapstructure:"dns"`
-	K8sSvc      *K8sSvcResolver      `mapstructure:"k8s"`
-	AWSCloudMap *AWSCloudMapResolver `mapstructure:"aws_cloud_map"`
+	Static            *StaticResolver            `mapstructure:"static"`
+	DNS               *DNSResolver               `mapstructure:"dns"`
+	DNSHealthChecking *DNSResolverHealthChecking `mapstructure:"dns_healthchecking"`
+	K8sSvc            *K8sSvcResolver            `mapstructure:"k8s"`
+	AWSCloudMap       *AWSCloudMapResolver       `mapstructure:"aws_cloud_map"`
 }
 
 // StaticResolver defines the configuration for the resolver providing a fixed list of backends
@@ -75,6 +76,15 @@ type DNSResolver struct {
 	Port     string        `mapstructure:"port"`
 	Interval time.Duration `mapstructure:"interval"`
 	Timeout  time.Duration `mapstructure:"timeout"`
+}
+
+// DNSResolverHealthChecking defines the configuration for the health checking DNS resolver
+type DNSResolverHealthChecking struct {
+	Hostname   string        `mapstructure:"hostname"`
+	Port       string        `mapstructure:"port"`
+	HealthPort string        `mapstructure:"healthPort"`
+	Interval   time.Duration `mapstructure:"interval"`
+	Timeout    time.Duration `mapstructure:"timeout"`
 }
 
 // K8sSvcResolver defines the configuration for the DNS resolver

@@ -49,6 +49,9 @@ func newLoadBalancer(logger *zap.Logger, cfg component.Config, factory component
 	if oCfg.Resolver.DNS != nil {
 		count++
 	}
+	if oCfg.Resolver.DNSHealthChecking != nil {
+		count++
+	}
 	if oCfg.Resolver.Static != nil {
 		count++
 	}
@@ -83,6 +86,23 @@ func newLoadBalancer(logger *zap.Logger, cfg component.Config, factory component
 			oCfg.Resolver.DNS.Port,
 			oCfg.Resolver.DNS.Interval,
 			oCfg.Resolver.DNS.Timeout,
+			telemetry,
+		)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if oCfg.Resolver.DNSHealthChecking != nil {
+		dnsLogger := logger.With(zap.String("resolver", "dns_healthchecking"))
+
+		var err error
+		res, err = newDNSHealthCheckingResolver(
+			dnsLogger,
+			oCfg.Resolver.DNSHealthChecking.Hostname,
+			oCfg.Resolver.DNSHealthChecking.Port,
+			oCfg.Resolver.DNSHealthChecking.HealthPort,
+			oCfg.Resolver.DNSHealthChecking.Interval,
+			oCfg.Resolver.DNSHealthChecking.Timeout,
 			telemetry,
 		)
 		if err != nil {
