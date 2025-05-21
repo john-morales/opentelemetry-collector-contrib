@@ -14,11 +14,20 @@ import (
 
 	"github.com/open-telemetry/opentelemetry-collector-contrib/exporter/loadbalancingexporter/internal/metadata"
 
+	"go.opentelemetry.io/collector/config/configgrpc"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
+)
+
+var (
+	dnsHealthCheckingResolverAttr           = attribute.String("resolver", "dns_healthchecking")
+	dnsHealthCheckingResolverAttrSet        = attribute.NewSet(dnsHealthCheckingResolverAttr)
+	dnsHealthCheckingResolverSuccessAttrSet = attribute.NewSet(dnsHealthCheckingResolverAttr, attribute.Bool("success", true))
+	dnsHealthCheckingResolverFailureAttrSet = attribute.NewSet(dnsHealthCheckingResolverAttr, attribute.Bool("success", false))
 )
 
 var _ resolver = (*dnsHealthCheckingResolver)(nil)
@@ -44,6 +53,7 @@ type dnsHealthCheckingResolver struct {
 
 func newDNSHealthCheckingResolver(
 	logger *zap.Logger,
+	cfg *configgrpc.ClientConfig,
 	hostname string,
 	port string,
 	healthPort string,
@@ -134,8 +144,11 @@ func (r *dnsHealthCheckingResolver) resolve(ctx context.Context) ([]string, erro
 
 	endpoints, err := r.dnsResolver.resolve(ctx)
 	if err != nil {
+		r.telemetry.LoadbalancerNumResolutions.Add(ctx, 1, metric.WithAttributeSet(dnsHealthCheckingResolverFailureAttrSet))
 		return endpoints, err
 	}
+
+	r.telemetry.LoadbalancerNumResolutions.Add(ctx, 1, metric.WithAttributeSet(dnsHealthCheckingResolverSuccessAttrSet))
 
 	// Create any new watchers from DNS
 	r.updateLock.Lock()
@@ -184,13 +197,11 @@ func (r *dnsHealthCheckingResolver) resolve(ctx context.Context) ([]string, erro
 	// Perform Check() I/O without holding lock
 	healthyEndpoints := make([]string, 0, len(toCheck))
 	for _, watched := range toCheck {
-		wctx, cancel := context.WithTimeout(ctx, r.resTimeout)
-		if watched.Ok(wctx) {
+		if watched.Ok(ctx) {
 			healthyEndpoints = append(healthyEndpoints, watched.endpoint)
 		} else {
 			r.logger.Info("Endpoint failed health check", zap.String("healthcheckEndpoint", watched.healthEndpoint))
 		}
-		cancel()
 	}
 
 	sort.Strings(healthyEndpoints)
@@ -203,8 +214,8 @@ func (r *dnsHealthCheckingResolver) resolve(ctx context.Context) ([]string, erro
 	r.updateLock.Lock()
 	r.healthyEndpoints = healthyEndpoints
 	r.updateLock.Unlock()
-	r.telemetry.LoadbalancerNumBackends.Record(ctx, int64(len(healthyEndpoints)), metric.WithAttributeSet(dnsResolverAttrSet))
-	r.telemetry.LoadbalancerNumBackendUpdates.Add(ctx, 1, metric.WithAttributeSet(dnsResolverAttrSet))
+	r.telemetry.LoadbalancerNumBackends.Record(ctx, int64(len(healthyEndpoints)), metric.WithAttributeSet(dnsHealthCheckingResolverAttrSet))
+	r.telemetry.LoadbalancerNumBackendUpdates.Add(ctx, 1, metric.WithAttributeSet(dnsHealthCheckingResolverAttrSet))
 
 	// propagate the change
 	r.changeCallbackLock.RLock()

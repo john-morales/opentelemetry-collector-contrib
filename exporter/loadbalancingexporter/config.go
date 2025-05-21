@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/servicediscovery/types"
+	"go.opentelemetry.io/collector/config/configgrpc"
 	"go.opentelemetry.io/collector/config/configretry"
 	"go.opentelemetry.io/collector/exporter/exporterhelper"
 	"go.opentelemetry.io/collector/exporter/otlpexporter"
@@ -80,11 +81,12 @@ type DNSResolver struct {
 
 // DNSResolverHealthChecking defines the configuration for the health checking DNS resolver
 type DNSResolverHealthChecking struct {
-	Hostname   string        `mapstructure:"hostname"`
-	Port       string        `mapstructure:"port"`
-	HealthPort string        `mapstructure:"healthPort"`
-	Interval   time.Duration `mapstructure:"interval"`
-	Timeout    time.Duration `mapstructure:"timeout"`
+	Hostname   string                   `mapstructure:"hostname"`
+	Port       string                   `mapstructure:"port"`
+	HealthPort string                   `mapstructure:"healthPort"`
+	Interval   time.Duration            `mapstructure:"interval"`
+	Timeout    time.Duration            `mapstructure:"timeout"`
+	OTLP       *configgrpc.ClientConfig `mapstructure:"otlp"`
 }
 
 // K8sSvcResolver defines the configuration for the DNS resolver

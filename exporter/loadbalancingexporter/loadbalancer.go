@@ -95,9 +95,15 @@ func newLoadBalancer(logger *zap.Logger, cfg component.Config, factory component
 	if oCfg.Resolver.DNSHealthChecking != nil {
 		dnsLogger := logger.With(zap.String("resolver", "dns_healthchecking"))
 
+		cConfig := &oCfg.Protocol.OTLP.ClientConfig
+		if oCfg.Resolver.DNSHealthChecking.OTLP != nil {
+			cConfig = oCfg.Resolver.DNSHealthChecking.OTLP
+		}
+
 		var err error
 		res, err = newDNSHealthCheckingResolver(
 			dnsLogger,
+			cConfig,
 			oCfg.Resolver.DNSHealthChecking.Hostname,
 			oCfg.Resolver.DNSHealthChecking.Port,
 			oCfg.Resolver.DNSHealthChecking.HealthPort,
