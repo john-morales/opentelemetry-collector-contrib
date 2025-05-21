@@ -188,7 +188,8 @@ func (r *dnsHealthCheckingResolver) resolve(ctx context.Context) ([]string, erro
 			for _, watched := range toClose {
 				r.logger.Info("Closing removed watchedEndpoint", zap.String("healthcheckEndpoint", watched.healthEndpoint))
 				if err = watched.Close(); err != nil {
-					r.logger.Warn("Failure closing watchedEndpoint", zap.String("healthcheckEndpoint", watched.healthEndpoint), zap.Error(err))
+					r.logger.Warn("Failure closing watchedEndpoint before removal",
+						zap.String("healthcheckEndpoint", watched.healthEndpoint), zap.Error(err))
 				}
 			}
 		}()
@@ -199,8 +200,6 @@ func (r *dnsHealthCheckingResolver) resolve(ctx context.Context) ([]string, erro
 	for _, watched := range toCheck {
 		if watched.Ok(ctx) {
 			healthyEndpoints = append(healthyEndpoints, watched.endpoint)
-		} else {
-			r.logger.Info("Endpoint failed health check", zap.String("healthcheckEndpoint", watched.healthEndpoint))
 		}
 	}
 
@@ -265,8 +264,13 @@ func newWatchedEndpoint(logger *zap.Logger, endpoint, healthEndpoint string) (*w
 
 func (w *watchedEndpoint) Ok(ctx context.Context) bool {
 	recv, err := w.client.Check(ctx, new(healthpb.HealthCheckRequest))
-	w.logger.Debug("Check received message", zap.String("healthcheckEndpoint", w.healthEndpoint), zap.String("recv", recv.String()), zap.Error(err))
-	return err == nil && recv.Status == healthpb.HealthCheckResponse_SERVING
+	ok := err == nil && recv.Status == healthpb.HealthCheckResponse_SERVING
+	if ok {
+		w.logger.Debug("Health check response", zap.String("healthcheckEndpoint", w.healthEndpoint), zap.String("recv", recv.String()))
+	} else {
+		w.logger.Info("Health check failed", zap.String("healthcheckEndpoint", w.healthEndpoint), zap.String("recv", recv.String()), zap.Error(err))
+	}
+	return ok
 }
 
 func (w *watchedEndpoint) Close() error {
