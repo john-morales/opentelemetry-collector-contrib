@@ -3,7 +3,10 @@
 
 package loadbalancingexporter
 
-import "context"
+import (
+	"context"
+	"go.opentelemetry.io/collector/component"
+)
 
 type mockResolver struct {
 	onStart           func(context.Context) error
@@ -13,7 +16,7 @@ type mockResolver struct {
 	triggerCallbacks  bool
 }
 
-func (m *mockResolver) start(ctx context.Context) error {
+func (m *mockResolver) start(ctx context.Context, host component.Host) error {
 	if m.onStart != nil {
 		if err := m.onStart(ctx); err != nil {
 			return err

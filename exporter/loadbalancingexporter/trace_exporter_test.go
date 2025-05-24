@@ -74,7 +74,7 @@ func TestTracesExporterStart(t *testing.T) {
 			"error",
 			func() *traceExporterImp {
 				ts, tb := getTelemetryAssets(t)
-				lb, _ := newLoadBalancer(ts.Logger, simpleConfig(), nil, tb)
+				lb, _ := newLoadBalancer(ts.Logger, simpleConfig(), nil, tb, ts.TelemetrySettings)
 				p, _ := newTracesExporter(ts, simpleConfig())
 
 				lb.res = &mockResolver{
@@ -121,7 +121,7 @@ func TestConsumeTraces(t *testing.T) {
 	componentFactory := func(_ context.Context, _ string) (component.Component, error) {
 		return newNopMockTracesExporter(), nil
 	}
-	lb, err := newLoadBalancer(ts.Logger, simpleConfig(), componentFactory, tb)
+	lb, err := newLoadBalancer(ts.Logger, simpleConfig(), componentFactory, tb, ts.TelemetrySettings)
 	require.NotNil(t, lb)
 	require.NoError(t, err)
 
@@ -169,7 +169,7 @@ func TestConsumeTraces_ConcurrentResolverChange(t *testing.T) {
 		}
 		return te, nil
 	}
-	lb, err := newLoadBalancer(ts.Logger, simpleConfig(), componentFactory, tb)
+	lb, err := newLoadBalancer(ts.Logger, simpleConfig(), componentFactory, tb, ts.TelemetrySettings)
 	require.NotNil(t, lb)
 	require.NoError(t, err)
 
@@ -212,7 +212,7 @@ func TestConsumeTracesServiceBased(t *testing.T) {
 	componentFactory := func(_ context.Context, _ string) (component.Component, error) {
 		return newNopMockTracesExporter(), nil
 	}
-	lb, err := newLoadBalancer(ts.Logger, serviceBasedRoutingConfig(), componentFactory, tb)
+	lb, err := newLoadBalancer(ts.Logger, serviceBasedRoutingConfig(), componentFactory, tb, ts.TelemetrySettings)
 	require.NotNil(t, lb)
 	require.NoError(t, err)
 
@@ -439,7 +439,7 @@ func TestConsumeTracesExporterNoEndpoint(t *testing.T) {
 	componentFactory := func(_ context.Context, _ string) (component.Component, error) {
 		return newNopMockTracesExporter(), nil
 	}
-	lb, err := newLoadBalancer(ts.Logger, simpleConfig(), componentFactory, tb)
+	lb, err := newLoadBalancer(ts.Logger, simpleConfig(), componentFactory, tb, ts.TelemetrySettings)
 	require.NotNil(t, lb)
 	require.NoError(t, err)
 
@@ -474,7 +474,7 @@ func TestConsumeTracesUnexpectedExporterType(t *testing.T) {
 	componentFactory := func(_ context.Context, _ string) (component.Component, error) {
 		return newNopMockExporter(), nil
 	}
-	lb, err := newLoadBalancer(ts.Logger, simpleConfig(), componentFactory, tb)
+	lb, err := newLoadBalancer(ts.Logger, simpleConfig(), componentFactory, tb, ts.TelemetrySettings)
 	require.NotNil(t, lb)
 	require.NoError(t, err)
 
@@ -512,7 +512,7 @@ func TestBatchWithTwoTraces(t *testing.T) {
 	componentFactory := func(_ context.Context, _ string) (component.Component, error) {
 		return newMockTracesExporter(sink.ConsumeTraces), nil
 	}
-	lb, err := newLoadBalancer(ts.Logger, simpleConfig(), componentFactory, tb)
+	lb, err := newLoadBalancer(ts.Logger, simpleConfig(), componentFactory, tb, ts.TelemetrySettings)
 	require.NotNil(t, lb)
 	require.NoError(t, err)
 
@@ -640,7 +640,7 @@ func TestRollingUpdatesWhenConsumeTraces(t *testing.T) {
 	componentFactory := func(_ context.Context, _ string) (component.Component, error) {
 		return newNopMockTracesExporter(), nil
 	}
-	lb, err := newLoadBalancer(ts.Logger, cfg, componentFactory, tb)
+	lb, err := newLoadBalancer(ts.Logger, cfg, componentFactory, tb, ts.TelemetrySettings)
 	require.NotNil(t, lb)
 	require.NoError(t, err)
 
@@ -744,7 +744,7 @@ func benchConsumeTraces(b *testing.B, endpointsCount int, tracesCount int) {
 		},
 	}
 
-	lb, err := newLoadBalancer(ts.Logger, config, componentFactory, tb)
+	lb, err := newLoadBalancer(ts.Logger, config, componentFactory, tb, ts.TelemetrySettings)
 	require.NotNil(b, lb)
 	require.NoError(b, err)
 

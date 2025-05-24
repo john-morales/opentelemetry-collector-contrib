@@ -59,7 +59,7 @@ func newTracesExporter(params exporter.Settings, cfg component.Config) (*traceEx
 		return exporterFactory.CreateTraces(ctx, oParams, &oCfg)
 	}
 
-	lb, err := newLoadBalancer(params.Logger, cfg, cfFunc, telemetry)
+	lb, err := newLoadBalancer(params.Logger, cfg, cfFunc, telemetry, params.TelemetrySettings)
 	if err != nil {
 		return nil, err
 	}

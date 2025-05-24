@@ -3,7 +3,10 @@
 
 package loadbalancingexporter // import "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/loadbalancingexporter"
 
-import "context"
+import (
+	"context"
+	"go.opentelemetry.io/collector/component"
+)
 
 // resolver determines the contract for sources of backend endpoint information
 type resolver interface {
@@ -12,7 +15,7 @@ type resolver interface {
 	resolve(context.Context) ([]string, error)
 
 	// start signals the resolver to start its work
-	start(context.Context) error
+	start(context.Context, component.Host) error
 
 	// shutdown signals the resolver to finish its work. This should block until the current resolutions are finished.
 	// Once this is invoked, callbacks will not be triggered anymore and will need to be registered again in case the consumer

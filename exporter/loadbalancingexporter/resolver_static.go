@@ -6,6 +6,7 @@ package loadbalancingexporter // import "github.com/open-telemetry/opentelemetry
 import (
 	"context"
 	"errors"
+	"go.opentelemetry.io/collector/component"
 	"sort"
 	"sync"
 
@@ -50,7 +51,7 @@ func newStaticResolver(endpoints []string, tb *metadata.TelemetryBuilder) (*stat
 	}, nil
 }
 
-func (r *staticResolver) start(ctx context.Context) error {
+func (r *staticResolver) start(ctx context.Context, _ component.Host) error {
 	_, err := r.resolve(ctx) // right now, this can't fail
 	return err
 }

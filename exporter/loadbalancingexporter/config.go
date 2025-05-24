@@ -11,6 +11,7 @@ import (
 	"go.opentelemetry.io/collector/config/configretry"
 	"go.opentelemetry.io/collector/exporter/exporterhelper"
 	"go.opentelemetry.io/collector/exporter/otlpexporter"
+	"google.golang.org/grpc/backoff"
 )
 
 type routingKey int
@@ -39,8 +40,9 @@ type Config struct {
 	configretry.BackOffConfig `mapstructure:"retry_on_failure"`
 	QueueSettings             exporterhelper.QueueBatchConfig `mapstructure:"sending_queue"`
 
-	Protocol Protocol         `mapstructure:"protocol"`
-	Resolver ResolverSettings `mapstructure:"resolver"`
+	Protocol    Protocol             `mapstructure:"protocol"`
+	Resolver    ResolverSettings     `mapstructure:"resolver"`
+	HealthCheck *HealthCheckSettings `mapstructure:"healthcheck"`
 
 	// RoutingKey is a single routing key value
 	RoutingKey string `mapstructure:"routing_key"`
@@ -59,11 +61,10 @@ type Protocol struct {
 
 // ResolverSettings defines the configurations for the backend resolver
 type ResolverSettings struct {
-	Static            *StaticResolver            `mapstructure:"static"`
-	DNS               *DNSResolver               `mapstructure:"dns"`
-	DNSHealthChecking *DNSResolverHealthChecking `mapstructure:"dns_healthchecking"`
-	K8sSvc            *K8sSvcResolver            `mapstructure:"k8s"`
-	AWSCloudMap       *AWSCloudMapResolver       `mapstructure:"aws_cloud_map"`
+	Static      *StaticResolver      `mapstructure:"static"`
+	DNS         *DNSResolver         `mapstructure:"dns"`
+	K8sSvc      *K8sSvcResolver      `mapstructure:"k8s"`
+	AWSCloudMap *AWSCloudMapResolver `mapstructure:"aws_cloud_map"`
 }
 
 // StaticResolver defines the configuration for the resolver providing a fixed list of backends
@@ -77,16 +78,6 @@ type DNSResolver struct {
 	Port     string        `mapstructure:"port"`
 	Interval time.Duration `mapstructure:"interval"`
 	Timeout  time.Duration `mapstructure:"timeout"`
-}
-
-// DNSResolverHealthChecking defines the configuration for the health checking DNS resolver
-type DNSResolverHealthChecking struct {
-	Hostname   string                   `mapstructure:"hostname"`
-	Port       string                   `mapstructure:"port"`
-	HealthPort string                   `mapstructure:"healthPort"`
-	Interval   time.Duration            `mapstructure:"interval"`
-	Timeout    time.Duration            `mapstructure:"timeout"`
-	OTLP       *configgrpc.ClientConfig `mapstructure:"otlp"`
 }
 
 // K8sSvcResolver defines the configuration for the DNS resolver
@@ -104,4 +95,31 @@ type AWSCloudMapResolver struct {
 	Interval      time.Duration            `mapstructure:"interval"`
 	Timeout       time.Duration            `mapstructure:"timeout"`
 	Port          *uint16                  `mapstructure:"port"`
+}
+
+// HealthCheckSettings defines the configurations for optional health checking of endpoints
+type HealthCheckSettings struct {
+	HealthPort    string                     `mapstructure:"healthPort"`
+	Interval      time.Duration              `mapstructure:"interval"`
+	Timeout       time.Duration              `mapstructure:"timeout"`
+	ClientConfig  *configgrpc.ClientConfig   `mapstructure:"otlp"`
+	BackoffConfig *configretry.BackOffConfig `mapstructure:"retry_on_failure"`
+}
+
+func (h HealthCheckSettings) ToGrpcConfig() backoff.Config {
+	if h.BackoffConfig == nil {
+		return backoff.Config{
+			BaseDelay:  500 * time.Millisecond,
+			MaxDelay:   5 * time.Second,
+			Multiplier: 1.5,
+			Jitter:     0.1,
+		}
+	}
+
+	return backoff.Config{
+		BaseDelay:  h.BackoffConfig.InitialInterval,
+		MaxDelay:   h.BackoffConfig.MaxInterval,
+		Multiplier: h.BackoffConfig.Multiplier,
+		Jitter:     h.BackoffConfig.RandomizationFactor,
+	}
 }

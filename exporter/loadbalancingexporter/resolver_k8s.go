@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go.opentelemetry.io/collector/component"
 	"net"
 	"os"
 	"sort"
@@ -141,7 +142,7 @@ func newK8sResolver(clt kubernetes.Interface,
 	return r, nil
 }
 
-func (r *k8sResolver) start(_ context.Context) error {
+func (r *k8sResolver) start(_ context.Context, _ component.Host) error {
 	var initErr error
 	r.once.Do(func() {
 		if r.epsListWatcher != nil {

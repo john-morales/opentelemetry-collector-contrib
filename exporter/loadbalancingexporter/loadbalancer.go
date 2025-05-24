@@ -42,14 +42,11 @@ type loadBalancer struct {
 }
 
 // Create new load balancer
-func newLoadBalancer(logger *zap.Logger, cfg component.Config, factory componentFactory, telemetry *metadata.TelemetryBuilder) (*loadBalancer, error) {
+func newLoadBalancer(logger *zap.Logger, cfg component.Config, factory componentFactory, telemetry *metadata.TelemetryBuilder, settings component.TelemetrySettings) (*loadBalancer, error) {
 	oCfg := cfg.(*Config)
 
 	count := 0
 	if oCfg.Resolver.DNS != nil {
-		count++
-	}
-	if oCfg.Resolver.DNSHealthChecking != nil {
 		count++
 	}
 	if oCfg.Resolver.Static != nil {
@@ -86,29 +83,6 @@ func newLoadBalancer(logger *zap.Logger, cfg component.Config, factory component
 			oCfg.Resolver.DNS.Port,
 			oCfg.Resolver.DNS.Interval,
 			oCfg.Resolver.DNS.Timeout,
-			telemetry,
-		)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if oCfg.Resolver.DNSHealthChecking != nil {
-		dnsLogger := logger.With(zap.String("resolver", "dns_healthchecking"))
-
-		cConfig := &oCfg.Protocol.OTLP.ClientConfig
-		if oCfg.Resolver.DNSHealthChecking.OTLP != nil {
-			cConfig = oCfg.Resolver.DNSHealthChecking.OTLP
-		}
-
-		var err error
-		res, err = newDNSHealthCheckingResolver(
-			dnsLogger,
-			cConfig,
-			oCfg.Resolver.DNSHealthChecking.Hostname,
-			oCfg.Resolver.DNSHealthChecking.Port,
-			oCfg.Resolver.DNSHealthChecking.HealthPort,
-			oCfg.Resolver.DNSHealthChecking.Interval,
-			oCfg.Resolver.DNSHealthChecking.Timeout,
 			telemetry,
 		)
 		if err != nil {
@@ -158,6 +132,35 @@ func newLoadBalancer(logger *zap.Logger, cfg component.Config, factory component
 		return nil, errNoResolver
 	}
 
+	if oCfg.HealthCheck != nil {
+		healthLogger := logger.With(zap.String("resolver", "healthchecking"))
+
+		healthSettings := *oCfg.HealthCheck
+		if oCfg.HealthCheck.ClientConfig == nil {
+			healthSettings.ClientConfig = &oCfg.Protocol.OTLP.ClientConfig
+		}
+
+		healthLogger.Info("Creating HealthCheck over resolver",
+			zap.String("settings", fmt.Sprintf("%+v", healthSettings)),
+			zap.String("clientConfig", fmt.Sprintf("%+v", healthSettings.ClientConfig)),
+			zap.String("backoffConfig", fmt.Sprintf("%+v", healthSettings.BackoffConfig)),
+		)
+
+		watchFactory := newGrpcWatcherFactory(logger, healthSettings, telemetry, settings)
+
+		var err error
+		res, err = newHealthCheckingResolver(
+			healthLogger,
+			res,
+			healthSettings,
+			watchFactory,
+			telemetry,
+		)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &loadBalancer{
 		logger:           logger,
 		res:              res,
@@ -169,7 +172,7 @@ func newLoadBalancer(logger *zap.Logger, cfg component.Config, factory component
 func (lb *loadBalancer) Start(ctx context.Context, host component.Host) error {
 	lb.res.onChange(lb.onBackendChanges)
 	lb.host = host
-	return lb.res.start(ctx)
+	return lb.res.start(ctx, host)
 }
 
 func (lb *loadBalancer) onBackendChanges(resolved []string) {

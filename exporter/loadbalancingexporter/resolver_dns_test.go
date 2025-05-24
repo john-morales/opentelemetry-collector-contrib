@@ -14,6 +14,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/collector/component/componenttest"
 	"go.uber.org/zap"
 )
 
@@ -38,7 +39,7 @@ func TestInitialDNSResolution(t *testing.T) {
 	res.onChange(func(endpoints []string) {
 		resolved = endpoints
 	})
-	require.NoError(t, res.start(context.Background()))
+	require.NoError(t, res.start(context.Background(), componenttest.NewNopHost()))
 	defer func() {
 		require.NoError(t, res.shutdown(context.Background()))
 	}()
@@ -71,7 +72,7 @@ func TestInitialDNSResolutionWithPort(t *testing.T) {
 	res.onChange(func(endpoints []string) {
 		resolved = endpoints
 	})
-	require.NoError(t, res.start(context.Background()))
+	require.NoError(t, res.start(context.Background(), componenttest.NewNopHost()))
 	defer func() {
 		require.NoError(t, res.shutdown(context.Background()))
 	}()
@@ -107,7 +108,7 @@ func TestCantResolve(t *testing.T) {
 	}
 
 	// test
-	require.NoError(t, res.start(context.Background()))
+	require.NoError(t, res.start(context.Background(), componenttest.NewNopHost()))
 
 	// verify
 	assert.NoError(t, err)
@@ -134,7 +135,7 @@ func TestOnChange(t *testing.T) {
 	res.onChange(func(_ []string) {
 		counter.Add(1)
 	})
-	require.NoError(t, res.start(context.Background()))
+	require.NoError(t, res.start(context.Background(), componenttest.NewNopHost()))
 	defer func() {
 		require.NoError(t, res.shutdown(context.Background()))
 	}()
@@ -228,7 +229,7 @@ func TestPeriodicallyResolve(t *testing.T) {
 
 	// test
 	wg.Add(3)
-	require.NoError(t, res.start(context.Background()))
+	require.NoError(t, res.start(context.Background(), componenttest.NewNopHost()))
 	defer func() {
 		require.NoError(t, res.shutdown(context.Background()))
 	}()
@@ -272,7 +273,7 @@ func TestPeriodicallyResolveFailure(t *testing.T) {
 
 	// test
 	wg.Add(2)
-	require.NoError(t, res.start(context.Background()))
+	require.NoError(t, res.start(context.Background(), componenttest.NewNopHost()))
 	defer func() {
 		require.NoError(t, res.shutdown(context.Background()))
 	}()
@@ -293,7 +294,7 @@ func TestShutdownClearsCallbacks(t *testing.T) {
 
 	res.resolver = &mockDNSResolver{}
 	res.onChange(func(_ []string) {})
-	require.NoError(t, res.start(context.Background()))
+	require.NoError(t, res.start(context.Background(), componenttest.NewNopHost()))
 
 	// sanity check
 	require.Len(t, res.onChangeCallbacks, 1)

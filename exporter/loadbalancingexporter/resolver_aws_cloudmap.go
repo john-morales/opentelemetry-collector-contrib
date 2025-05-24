@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go.opentelemetry.io/collector/component"
 	"log"
 	"sort"
 	"sync"
@@ -119,7 +120,7 @@ func newCloudMapResolver(
 	}, nil
 }
 
-func (r *cloudMapResolver) start(ctx context.Context) error {
+func (r *cloudMapResolver) start(ctx context.Context, _ component.Host) error {
 	if _, err := r.resolve(ctx); err != nil {
 		r.logger.Warn("failed initial resolve", zap.Error(err))
 	}

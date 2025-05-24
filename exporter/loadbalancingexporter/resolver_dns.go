@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go.opentelemetry.io/collector/component"
 	"net"
 	"sort"
 	"sync"
@@ -88,7 +89,7 @@ func newDNSResolver(
 	}, nil
 }
 
-func (r *dnsResolver) start(ctx context.Context) error {
+func (r *dnsResolver) start(ctx context.Context, host component.Host) error {
 	if _, err := r.resolve(ctx); err != nil {
 		r.logger.Warn("failed to resolve", zap.Error(err))
 	}

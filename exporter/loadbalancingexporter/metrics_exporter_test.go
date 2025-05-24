@@ -117,7 +117,7 @@ func TestMetricsExporterStart(t *testing.T) {
 		{
 			"error",
 			func() *metricExporterImp {
-				lb, err := newLoadBalancer(ts.Logger, serviceBasedRoutingConfig(), nil, tb)
+				lb, err := newLoadBalancer(ts.Logger, serviceBasedRoutingConfig(), nil, tb, ts.TelemetrySettings)
 				require.NoError(t, err)
 
 				p, _ := newMetricsExporter(ts, serviceBasedRoutingConfig())
@@ -354,7 +354,7 @@ func TestConsumeMetrics_SingleEndpoint(t *testing.T) {
 				return newMockMetricsExporter(sink.ConsumeMetrics), nil
 			}
 
-			lb, err := newLoadBalancer(ts.Logger, config, componentFactory, tb)
+			lb, err := newLoadBalancer(ts.Logger, config, componentFactory, tb, ts.TelemetrySettings)
 			require.NoError(t, err)
 			require.NotNil(t, lb)
 
@@ -473,7 +473,7 @@ func TestConsumeMetrics_TripleEndpoint(t *testing.T) {
 				return nil, errors.New("invalid endpoint")
 			}
 
-			lb, err := newLoadBalancer(ts.Logger, config, componentFactory, tb)
+			lb, err := newLoadBalancer(ts.Logger, config, componentFactory, tb, ts.TelemetrySettings)
 			require.NoError(t, err)
 			require.NotNil(t, lb)
 
@@ -551,7 +551,7 @@ func TestConsumeMetrics_ConcurrentResolverChange(t *testing.T) {
 		}
 		return te, nil
 	}
-	lb, err := newLoadBalancer(ts.Logger, simpleConfig(), componentFactory, tb)
+	lb, err := newLoadBalancer(ts.Logger, simpleConfig(), componentFactory, tb, ts.TelemetrySettings)
 	require.NotNil(t, lb)
 	require.NoError(t, err)
 
@@ -593,7 +593,7 @@ func TestConsumeMetricsExporterNoEndpoint(t *testing.T) {
 	componentFactory := func(_ context.Context, _ string) (component.Component, error) {
 		return newNopMockMetricsExporter(), nil
 	}
-	lb, err := newLoadBalancer(ts.Logger, serviceBasedRoutingConfig(), componentFactory, tb)
+	lb, err := newLoadBalancer(ts.Logger, serviceBasedRoutingConfig(), componentFactory, tb, ts.TelemetrySettings)
 	require.NotNil(t, lb)
 	require.NoError(t, err)
 
@@ -628,7 +628,7 @@ func TestConsumeMetricsUnexpectedExporterType(t *testing.T) {
 	componentFactory := func(_ context.Context, _ string) (component.Component, error) {
 		return newNopMockExporter(), nil
 	}
-	lb, err := newLoadBalancer(ts.Logger, serviceBasedRoutingConfig(), componentFactory, tb)
+	lb, err := newLoadBalancer(ts.Logger, serviceBasedRoutingConfig(), componentFactory, tb, ts.TelemetrySettings)
 	require.NotNil(t, lb)
 	require.NoError(t, err)
 
@@ -667,7 +667,7 @@ func TestBatchWithTwoMetrics(t *testing.T) {
 	componentFactory := func(_ context.Context, _ string) (component.Component, error) {
 		return newMockMetricsExporter(sink.ConsumeMetrics), nil
 	}
-	lb, err := newLoadBalancer(ts.Logger, serviceBasedRoutingConfig(), componentFactory, tb)
+	lb, err := newLoadBalancer(ts.Logger, serviceBasedRoutingConfig(), componentFactory, tb, ts.TelemetrySettings)
 	require.NotNil(t, lb)
 	require.NoError(t, err)
 
@@ -752,7 +752,7 @@ func TestRollingUpdatesWhenConsumeMetrics(t *testing.T) {
 	componentFactory := func(_ context.Context, _ string) (component.Component, error) {
 		return newNopMockMetricsExporter(), nil
 	}
-	lb, err := newLoadBalancer(ts.Logger, cfg, componentFactory, tb)
+	lb, err := newLoadBalancer(ts.Logger, cfg, componentFactory, tb, ts.TelemetrySettings)
 	require.NotNil(t, lb)
 	require.NoError(t, err)
 
@@ -904,7 +904,7 @@ func benchConsumeMetrics(b *testing.B, routingKey string, endpointsCount int, rm
 		RoutingKey: routingKey,
 	}
 
-	lb, err := newLoadBalancer(ts.Logger, config, componentFactory, tb)
+	lb, err := newLoadBalancer(ts.Logger, config, componentFactory, tb, ts.TelemetrySettings)
 	require.NotNil(b, lb)
 	require.NoError(b, err)
 

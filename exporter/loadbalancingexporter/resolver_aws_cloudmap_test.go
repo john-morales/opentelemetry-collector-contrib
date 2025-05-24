@@ -46,7 +46,7 @@ func TestInitialCloudMapResolution(t *testing.T) {
 	res.onChange(func(endpoints []string) {
 		resolved = endpoints
 	})
-	require.NoError(t, res.start(context.Background()))
+	require.NoError(t, res.start(context.Background(), nil))
 	defer func() {
 		require.NoError(t, res.shutdown(context.Background()))
 	}()
@@ -80,7 +80,7 @@ func TestInitialCloudMapResolutionWithPort(t *testing.T) {
 	res.onChange(func(endpoints []string) {
 		resolved = endpoints
 	})
-	require.NoError(t, res.start(context.Background()))
+	require.NoError(t, res.start(context.Background(), nil))
 	defer func() {
 		require.NoError(t, res.shutdown(context.Background()))
 	}()

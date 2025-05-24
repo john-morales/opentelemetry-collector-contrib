@@ -6,6 +6,7 @@ package loadbalancingexporter
 import (
 	"context"
 	"fmt"
+	"go.opentelemetry.io/collector/component/componenttest"
 	"testing"
 	"time"
 
@@ -68,7 +69,7 @@ func TestK8sResolve(t *testing.T) {
 		res, err := newK8sResolver(cl, zap.NewNop(), service, ports, defaultListWatchTimeout, returnHostnames, tb)
 		require.NoError(t, err)
 
-		require.NoError(t, res.start(context.Background()))
+		require.NoError(t, res.start(context.Background(), componenttest.NewNopHost()))
 		// verify endpoints should be the same as expectInit
 		assert.NoError(t, err)
 		assert.Equal(t, expectInit, res.Endpoints())

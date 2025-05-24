@@ -5,6 +5,7 @@ package loadbalancingexporter
 
 import (
 	"context"
+	"go.opentelemetry.io/collector/component/componenttest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -23,7 +24,7 @@ func TestInitialResolution(t *testing.T) {
 	res.onChange(func(endpoints []string) {
 		resolved = endpoints
 	})
-	require.NoError(t, res.start(context.Background()))
+	require.NoError(t, res.start(context.Background(), componenttest.NewNopHost()))
 	defer func() {
 		require.NoError(t, res.shutdown(context.Background()))
 	}()
@@ -46,7 +47,7 @@ func TestResolvedOnlyOnce(t *testing.T) {
 	})
 
 	// test
-	require.NoError(t, res.start(context.Background()))
+	require.NoError(t, res.start(context.Background(), componenttest.NewNopHost()))
 	defer func() {
 		require.NoError(t, res.shutdown(context.Background()))
 	}()
